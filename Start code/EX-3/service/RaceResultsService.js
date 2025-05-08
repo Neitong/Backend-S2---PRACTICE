@@ -1,6 +1,8 @@
 
+import { strict } from "assert";
 import { Duration } from "../model/Duration.js";
 import { RaceResult } from "../model/RaceResult.js";
+import fs from "fs";
 
 /**
  * This class handle the race results management system.
@@ -23,15 +25,28 @@ export class RaceResultsService {
    */
   addRaceResult(result) {
     // TODO
+    if (!(result instanceof RaceResult)) {
+      throw new TypeError("Argument must be an instance of RaceResult");
+    }
+    this._raceResults.push(result);
   }
 
   /**
    * Saves the race results list to a JSON file.
    * @param {string} filePath - The path to the file where data should be saved.
    */
-  saveToFile(filePath) {
-    // TODO
-  }
+  async saveToFile(filePath) {
+    try {
+        
+        const data = JSON.stringify(this._raceResults, null, 2);
+        await fs.promises.writeFile(filePath, data, 'utf8');
+        console.log('Data saved successfully to', filePath);
+        return true;
+    } catch (error) {
+        console.error('Error writing to file:', error);
+        return false;
+    }
+  } 
 
   /**
    * Loads the race results list from a JSON file.
@@ -40,6 +55,21 @@ export class RaceResultsService {
    */
   loadFromFile(filePath) {
     // TODO
+    try{
+      const data = fs.readFileSync(filePath, "utf8");
+      const parsedData = JSON.parse(data);
+      this._raceResults = parsedData.map(
+        (item) => (
+          item._participantId,
+          item.sportType,
+          new Duration(item._duration._totalSeconds).toString()
+        )
+      );
+      return true;
+    }catch (error) {
+      console.error("Error reading file:", error);
+      return false;
+    }
   }
 
   /**
@@ -50,7 +80,13 @@ export class RaceResultsService {
    */
   getTimeForParticipant(participantId, sport) {
        // TODO
+    const result = this._raceResults.find(
+      (result) => result.getParticipantId() === participantId && result.getSportType() === sport
+    );
+    return result ? result.getDuration() : null;
   }
+    
+  
 
   /**
    * Computes the total time for a given participant by summing their race times.
@@ -58,6 +94,16 @@ export class RaceResultsService {
    * @returns {Duration|null} The total Duration object if found, otherwise null.
    */
   getTotalTimeForParticipant(participantId) {
-        // TODO
+    const results = this._raceResults.filter(
+        (result) => result.getParticipantId() === participantId
+    );
+
+    if (results.length === 0) {
+        return null;
+    }
+
+    return results.reduce((totalDuration, result) => {
+        return totalDuration.plus(result.getDuration());
+    }, new Duration(0));
   }
 }
