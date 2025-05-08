@@ -59,11 +59,14 @@ export class RaceResultsService {
       const data = fs.readFileSync(filePath, "utf8");
       const parsedData = JSON.parse(data);
       this._raceResults = parsedData.map(
-        (item) => (
-          item._participantId,
-          item.sportType,
-          new Duration(item._duration._totalSeconds).toString()
-        )
+        (item) => {          // new RaceResult(item._participantId, item._sportType, new Duration(item._duration._totalSeconds).toString())
+          const duration = new Duration(item._duration._totalSeconds);
+          return new RaceResult(
+            item._participantId,
+            item._sportType,
+            duration
+          );
+        }
       );
       return true;
     }catch (error) {
@@ -86,7 +89,6 @@ export class RaceResultsService {
     return result ? result.getDuration() : null;
   }
     
-  
 
   /**
    * Computes the total time for a given participant by summing their race times.
@@ -95,15 +97,20 @@ export class RaceResultsService {
    */
   getTotalTimeForParticipant(participantId) {
     const results = this._raceResults.filter(
-        (result) => result.getParticipantId() === participantId
+        result => result instanceof RaceResult &&
+        result.getParticipantId() === participantId
     );
 
     if (results.length === 0) {
-        return null;
+      return new Duration(0);
     }
 
-    return results.reduce((totalDuration, result) => {
-        return totalDuration.plus(result.getDuration());
-    }, new Duration(0));
+    return results.reduce((total, result) => {
+      const duration = result.getDuration();
+      if (!(duration instanceof Duration)) {
+          throw new TypeError('Invalid duration in race result');
+      }
+      return total.plus(duration);
+  }, new Duration(0));
   }
 }
